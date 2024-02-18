@@ -4,13 +4,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-static std::vector<std::tuple<std::string, glm::vec4>> hitObjects;
+static std::vector<std::tuple<std::string, glm::vec4>> hitObjectsShapes;
 static std::vector<glm::vec4> eyeCoords;
 static std::vector<glm::vec4> spotLights;
-static std::vector<glm::vec4> directLights;
+static std::vector<glm::vec4> Lights;
 static std::vector<glm::vec4> lightIntens;
 static std::vector<glm::vec4> ambientColor;
 static std::vector<glm::vec4> objColors;
+static std::vector<HitObject> hitObjects;
+static std::vector<spotlight> spotlights;
+static std::vector<dirlight> dirlights;
 
 
 static void printMat(const glm::mat4 mat)
@@ -80,7 +83,7 @@ void processLine(const std::string& line) {
 		type == 'o' ? typeVal = "object" : (type == 'r' ? typeVal = "reflective" : typeVal = "transparent");
 		coords = split(data, " ");
 		initVec(vec, coords);
-		hitObjects.push_back(std::make_tuple(typeVal, vec));
+		hitObjectsShapes.push_back(std::make_tuple(typeVal, vec));
 		break;
 	case 'c': // COLOR OF OBJECT VEC
 		coords = split(data, " ");
@@ -90,7 +93,7 @@ void processLine(const std::string& line) {
 	case 'd': // DIRECT LIGHT VEC
 		coords = split(data, " ");
 		initVec(vec, coords);
-		directLights.push_back(vec);
+		Lights.push_back(vec);
 		break;
 	case 'p': // SPOTLIGHT VEC
 		coords = split(data, " ");
@@ -121,17 +124,130 @@ void parseFile()
 	{
 		processLine(currLine);
 	}
+	std::vector<std::tuple<std::string, glm::vec4>>::iterator it1 = hitObjectsShapes.begin();
+	std::vector<glm::vec4>::iterator it2 = objColors.begin();
+	while (it1 != hitObjectsShapes.end() || it2 != objColors.end())
+	{
+		std::tuple<std::string, glm::vec4> shape = *it1;
+		glm::vec4 color = *it2;
+		std::string shape_behavior = std::get<0>(shape);
+		glm::vec4 shapeCoords = std::get<1>(shape);
+		glm::vec3 color3 = glm::vec3(color.x, color.y, color.z);
+		hitObjects.push_back(HitObject(color3, shapeCoords));
+		++it1;
+		++it2;
+	}
+
+	std::vector<glm::vec4>::iterator it3 = Lights.begin();
+	std::vector<glm::vec4>::iterator it4 = spotLights.begin();
+	std::vector<glm::vec4>::iterator it5 = lightIntens.begin();
+	while (it3 != Lights.end() || it4 != spotLights.end() || it5 != lightIntens.end())
+	{
+		glm::vec4 light = *it3;
+		glm::vec4 light_intern = *it5;
+		if (light.w == 1.0f)
+		{
+			glm::vec4 light_dir = *it4;
+			spotlights.push_back(spotlight(glm::vec3(light.x, light.y, light.z), glm::vec3(light_dir.x, light_dir.y, light_dir.z), light_dir.w, glm::vec3(light_intern.x, light_intern.y, light_intern.z)));
+			++it3;
+			++it4;
+			++it5;
+		}
+		else
+		{
+			dirlights.push_back(dirlight(glm::vec3(light.x, light.y, light.z), glm::vec3(light_intern.x, light_intern.y, light_intern.z)));
+			++it3;
+			++it5;
+		}
+	}
 
 }
 
 
+glm::vec3 ray_color(ray r, int depth) {
+	float min_t = 999999999.9;
+	hit_rec hr;
+	glm::vec3 result = glm::vec3(0.5f, 0.5f, 0.5f);
+	for (HitObject h : hitObjects) {
+		hit_rec nhr = h.get_hit(r, 0.0001, 999999999.9);
+		if (nhr.t < min_t && !isnan(nhr.t))
+		{
+			min_t = nhr.t;
+			hr = nhr;
+		}
+	}
+	glm::vec3 illumination = glm::vec3(ambientColor[0].x * hr.mat.Kd, ambientColor[0].y * hr.mat.Kd, ambientColor[0].z * hr.mat.Kd);
+	for (spotlight sl : spotlights)
+	{
+		if (!std::isnan(hr.t)) {
+			bool blocked = false;
+			for (HitObject h : hitObjects) {
+				hit_rec hrl;
+				hrl = h.get_hit(ray(hr.point, sl.getRay(hr.point)), 0.001, sl.getT(hr.point));
+				if (!std::isnan(hrl.t) && hrl.t > 0.001)
+					blocked = true;
+			}
+			if (!blocked)
+				illumination += sl.getIllu(r, hr);
+		}
+	}
+	for (dirlight dl : dirlights)
+	{
+		if (!std::isnan(hr.t)) {
+			bool blocked = false;
+			for (HitObject h : hitObjects) {
+				hit_rec hrl;
+				hrl = h.get_hit(ray(hr.point, dl.getRay(hr.point)), 0.001, dl.getT(hr.point));
+				if (!std::isnan(hrl.t) && hrl.t > 0.001)
+					blocked = true;
+			}
+			if (!blocked)
+				illumination += dl.getIllu(r, hr);
+		}
+	}
+	result = hr.mat.base_color * illumination;
+	if (result.x > 255.0f)
+		result.x = 255.0f;
+	if (result.y > 255.0f)
+		result.y = 255.0f;
+	if (result.z > 255.0f)
+		result.z = 255.0f;
+	return result;
+}
+
+void tracePixel(unsigned char* image,int x,int y)
+{
+	glm::vec3 eye = glm::vec3(eyeCoords[0].x, eyeCoords[0].y, eyeCoords[0].z); //origin
+	glm::vec3 horizontal = glm::vec3(2.0, 0, 0); // X axis
+	glm::vec3 vertical = glm::vec3(0, 2.0, 0); // Y axis
+	glm::vec3 focal_length = glm::vec3(0, 0, eyeCoords[0].z); // distance from camera to screen
+	glm::vec3 lower_left_corner = 
+		eye - horizontal / 2.0f - vertical / 2.0f - focal_length;
+
+	glm::vec3 pixel_color = glm::vec3(0.0f, 0.0f, 0.0f);
+	for (int s = 0; s < 1; s++) {
+		float u = (float(x) / 255);
+		float v = (float(y) / 255);
+		glm::vec3 xDir = glm::vec3(2 * u, 0, 0);
+		glm::vec3 yDir = glm::vec3(0, 2 * v, 0);
+		//glm::vec3 xDir = glm::vec3(0.5, 0, 0);
+		//glm::vec3 yDir = glm::vec3(0, 0.5, 0);
+		ray r(eye, lower_left_corner + xDir + yDir - eye);
+		pixel_color = ray_color(r, 5);
+	}
+	//pixel_color = pixel_color / (float)1;
+	image[255 * 256 * 4 - y * 256 * 4 + x * 4] = pixel_color.x;
+	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 1] = pixel_color.y;
+	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 2] = pixel_color.z;
+	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 3] = 255;
+}
 void Game::Init()
 {		
 
 	AddShader("../res/shaders/pickingShader");	
 	AddShader("../res/shaders/basicShader");
 	
-	AddTexture("../res/textures/box0.bmp",false);
+	//AddTexture("../res/textures/box0.bmp",false);
 
 	AddShape(Plane,-1,TRIANGLES);
 	
@@ -140,7 +256,21 @@ void Game::Init()
 	SetShapeTex(0,0);
 	MoveCamera(0,zTranslate,10);
 	pickedShape = -1;
-	
+
+
+	parseFile();
+
+	int w = 256;
+	int h = 256;
+
+	unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)* w * h *4);
+	for (int i = 0; i < w * h; i++) {
+		//image[4 * i + 3] = 255;
+	}
+	for (int i = 0; i < w; i++)
+		for (int j = 0; j < w; j++)
+			tracePixel(image, j, i);
+	AddTexture(256, 256, image);
 	//ReadPixel(); //uncomment when you are reading from the z-buffer
 }
 

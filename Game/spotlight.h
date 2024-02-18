@@ -1,18 +1,20 @@
-#ifndef GAME_SPOTLIGHT_H
-#define GAME_SPOTLIGHT_H
+#include "ray.h"
+#include "eye.h"
+#include "HitObject.h"
+#include "glm/detail/func_geometric.hpp"
+static float diffuseReflection = 0.7f;
+static float ambientReflection = 0.7f;
+static float specularReflection = 0.7f;
 
-
-#include "light.h"
-
-class spotlight : public light {
+class spotlight {
 public:
+    
+    glm::vec3 baseIllumination;
     ray r;
     float cut_off_angle;
     spotlight() {}
     spotlight(glm::vec3 origin, glm::vec3 dir, float cut_off_angle, glm::vec3 i);
-    virtual glm::vec3 getRay(glm::vec3 point) const override;
-    virtual float getT(glm::vec3 point) const override;
+    glm::vec3 getRay(glm::vec3 point);
+    float getT(glm::vec3 point);
+    glm::vec3 getIllu(ray camera, hit_rec obj) ;
 };
-
-
-#endif //GAME_SPOTLIGHT_H

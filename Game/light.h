@@ -12,9 +12,9 @@ static float specularReflection = 0.7f;
 class light {
 public:
     light() = default;;
-    virtual float getT(glm::vec3 point) const = 0;
-    virtual glm::vec3 getRay(glm::vec3 point) const = 0;
-    virtual glm::vec3 getIllu(ray camera, hit_rec obj) const;
+    float getT(glm::vec3 point) const;
+    glm::vec3 getRay(glm::vec3 point) const;
+    glm::vec3 getIllu(ray camera, hit_rec obj) const;
     glm::vec3 baseIllumination;
 };
 

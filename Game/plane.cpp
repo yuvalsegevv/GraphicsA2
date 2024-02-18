@@ -1,4 +1,4 @@
-#include <algorithm>
+/*#include <algorithm>
 #include "plane.h"
 #include "glm/detail/func_geometric.hpp"
 
@@ -35,3 +35,4 @@ hit_rec plane::get_hit(const ray& incomingRay, float t_min, float t_max, const m
 
     return rec; // Return the populated hit_record
 }
+*/

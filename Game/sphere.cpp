@@ -1,4 +1,4 @@
-#include "sphere.h"
+/*#include "sphere.h"
 #include "glm/detail/func_geometric.hpp"
 #include "ray.h"
 
@@ -46,3 +46,4 @@ hit_rec sphere::get_hit(const ray& incomingRay, float t_min, float t_max, const 
 
     return rec;
 }
+*/
