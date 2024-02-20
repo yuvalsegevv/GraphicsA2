@@ -114,7 +114,7 @@ void processLine(const std::string& line) {
 void parseFile()
 {
 	std::string currLine;
-	std::ifstream inputFile("../res/scene1.txt", std::ios::in);
+	std::ifstream inputFile("../res/scene4.txt", std::ios::in);
 	if (!inputFile)
 	{
 		std::cerr << "could not open the specify file" << std::endl;
@@ -148,7 +148,11 @@ void parseFile()
 		if (light.w == 1.0f)
 		{
 			glm::vec4 light_dir = *it4;
-			spotlights.push_back(spotlight(glm::vec3(light.x, light.y, light.z), glm::vec3(light_dir.x, light_dir.y, light_dir.z), light_dir.w, glm::vec3(light_intern.x, light_intern.y, light_intern.z)));
+			spotlights.push_back(spotlight(
+				glm::vec3(light.x, light.y, light.z),
+				glm::vec3(light_dir.x, light_dir.y, light_dir.z),
+				light_dir.w,
+				glm::vec3(light_intern.x, light_intern.y, light_intern.z)));
 			++it3;
 			++it4;
 			++it5;

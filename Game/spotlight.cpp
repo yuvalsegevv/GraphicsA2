@@ -14,12 +14,31 @@ float spotlight::getT(glm::vec3 point)  {
 }
 
 glm::vec3 spotlight::getRay(glm::vec3 point)  {
-    glm::vec3 dir_to_point = point - r.orig;
+    glm::vec3 dir_to_point = point - r.dir;
     dir_to_point = glm::normalize(dir_to_point);
-    float degree = std::acos(glm::clamp(glm::dot(dir_to_point, r.dir), -0.999f, .9999f));
-    if (degree > cut_off_angle * 3.1415 * 2)
+    
+    float dotProduct = glm::dot(point - r.dir, r.orig);
+
+    // Calculate the magnitudes (lengths) of the vectors
+    float magV1 = glm::length(point - r.dir);
+    float magV2 = glm::length(r.orig);
+
+    // Ensure denominators are not zero
+    if (magV1 == 0.0f || magV2 == 0.0f) {
+        std::cerr << "Error: Magnitude of a vector cannot be zero." << std::endl;
         return glm::vec3(0.0f, 0.0f, 0.0f);
-    else return dir_to_point * -1.f;
+    }
+
+    // Calculate the cosine of the angle
+    float cosTheta = dotProduct / (magV1 * magV2);
+
+    // Clamp the cosine value to the valid range [-1, 1] to avoid floating-point precision issues
+    cosTheta = glm::clamp(cosTheta, -1.0f, 1.0f);
+
+
+    if (cosTheta < cut_off_angle)
+        return glm::vec3(0.0f, 0.0f, 0.0f);
+    else return r.dir - point;
 }
 
 glm::vec3 spotlight::getIllu(ray camera, hit_rec obj)  {
