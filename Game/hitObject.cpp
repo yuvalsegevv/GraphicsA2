@@ -40,7 +40,6 @@ bool HitObject::can_hit(const ray& incomingRay, float t_min, float t_max) {
 hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
     if (coords.w <= 0) {
 
-
         float t = -(coords.x * incomingRay.orig.x + coords.y * incomingRay.orig.y + coords.z * incomingRay.orig.z + coords.w) /
             (coords.x * incomingRay.dir.x + coords.y * incomingRay.dir.y + coords.z * incomingRay.dir.z);
 
@@ -55,14 +54,17 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
         //float t = (glm::dot(-incomingRay.orig, normal_menormal) + coords.w) / denom;
 
         // Populate the hit_record
-        rec.t = t;
-        rec.point = incomingRay.at(t);
+        if (isnan(intersection.x) || t < 0)
+            rec.t = 99999999.9f;
+        else
+            rec.t = glm::length(incomingRay.orig - intersection);
+        rec.point = intersection;
         rec.normal = normal_menormal;
         rec.mat = mat;
 
         // Apply checker pattern modification
         glm::vec3 projected_point = glm::vec3(rec.point.x, rec.point.y, 0); // Assuming z=0 for simplicity
-        bool is_even = (static_cast<int>(std::floor(projected_point.x * 1.5) + std::floor(projected_point.y * 1.5)) % 2) == 0;
+        bool is_even = (static_cast<int>(std::floor(projected_point.x * 2) + std::floor(projected_point.y * 2)) % 2) == 0;
         rec.mat.Kd = is_even ? 0.5f : mat.Kd;
 
         return rec; // Return the populated hit_record*/
@@ -79,7 +81,10 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
 
         // Find the nearest root that lies in the acceptable range
         auto root = (-half_b - sqrtd) / a;
-        rec.t = root;
+        if (isnan(root))
+            rec.t = 99999999.9f;
+        else
+            rec.t = root;
         rec.point = incomingRay.at(rec.t);
         rec.normal = (rec.point - glm::vec3(coords.x, coords.y, coords.z)) / coords.w;
         rec.mat = mat;

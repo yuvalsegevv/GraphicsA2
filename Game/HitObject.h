@@ -7,8 +7,8 @@
 // Material structure to represent material properties
 struct material {
     glm::vec3 base_color;
-    float reflective;
-    float transparency;
+    bool reflective;
+    bool transparent;
     float Kd = 0.7f; // Default diffuse coefficient
     float shininess;
     // Normal vector of the plane
@@ -17,12 +17,13 @@ struct material {
     material() = default;
 
     // Constructor to initialize a material with specific properties
-    material(glm::vec3 color, float r, float t, float shiny)
-        : base_color(color * 255.0f), reflective(r), transparency(t), shininess(shiny) {}
+    material(glm::vec3 color, bool r, bool t, float shiny)
+        : base_color(color * 255.0f), reflective(r), transparent(t), shininess(shiny) {}
 };
 
 // Structure to record details of a ray-object intersection
 struct hit_rec {
+    bool hit;
     glm::vec3 point; // Intersection point
     glm::vec3 normal; // Surface normal at the intersection
     float t; // Parameter along the ray where the intersection occurs
@@ -34,7 +35,7 @@ class HitObject {
 public:
     glm::vec4 coords;
     material mat;
-    HitObject(glm::vec3 base_color, glm::vec4 coords) : mat(base_color, 0.0, 0.0, 0.0), coords(coords) {};
+    HitObject(glm::vec3 base_color, glm::vec4 coords, float shiny, bool reflective, bool transparent) : mat(base_color, reflective, transparent, shiny), coords(coords) {};
     // Pure virtual functions to test and get intersection with a ray
     hit_rec get_hit(const ray& r, float t_min, float t_max);
     bool can_hit(const ray& incomingRay, float t_min, float t_max);
