@@ -114,7 +114,7 @@ void processLine(const std::string& line) {
 void parseFile()
 {
 	std::string currLine;
-	std::ifstream inputFile("../res/scene1.txt", std::ios::in);
+	std::ifstream inputFile("../res/custom_scene.txt", std::ios::in);
 	if (!inputFile)
 	{
 		std::cerr << "could not open the specify file" << std::endl;
@@ -135,15 +135,15 @@ void parseFile()
 		glm::vec3 color3 = glm::vec3(color.x, color.y, color.z);
 		if (shape_behavior == "object")
 		{
-			hitObjects.push_back(HitObject(color3, shapeCoords, 0.0, false, false));
+			hitObjects.push_back(HitObject(color3, shapeCoords, color.w, false, false));
 		}
 		if (shape_behavior == "reflective")
 		{
-			hitObjects.push_back(HitObject(color3, shapeCoords, 0.0, true, false));
+			hitObjects.push_back(HitObject(color3, shapeCoords, color.w, true, false));
 		}
 		if (shape_behavior == "transparent")
 		{
-			hitObjects.push_back(HitObject(color3, shapeCoords, 0.0, false, true));
+			hitObjects.push_back(HitObject(color3, shapeCoords, color.w, false, true));
 		}
 		++it1;
 		++it2;
@@ -198,28 +198,30 @@ glm::vec3 ray_color(ray r, int depth) {
 	{
 		if (!std::isnan(hr.t)) {
 			bool blocked = false;
+			ray lr = ray(hr.point, sl.getRay(hr.point));
 			for (HitObject h : hitObjects) {
 				hit_rec hrl;
-				hrl = h.get_hit(ray(hr.point, sl.getRay(hr.point)), 0.001, sl.getT(hr.point));
+				hrl = h.get_hit(lr, 0.001, sl.getT(hr.point));
 				if (!std::isnan(hrl.t) && hrl.t > 0.001 && hrl.t < sl.getT(hr.point))
 					blocked = true;
 			}
 			if (!blocked)
-				illumination += sl.getIllu(r, hr);
+				illumination += sl.getIllu(lr, hr, r);
 		}
 	}
 	for (dirlight dl : dirlights)
 	{
 		if (!std::isnan(hr.t)) {
 			bool blocked = false;
+			ray lr = ray(hr.point, dl.getRay(hr.point));
 			for (HitObject h : hitObjects) {
 				hit_rec hrl;
-				hrl = h.get_hit(ray(hr.point, dl.getRay(hr.point)), 0.001, dl.getT(hr.point));
+				hrl = h.get_hit(lr, 0.001, dl.getT(hr.point));
 				if (!std::isnan(hrl.t) && hrl.t > 0.001 && hrl.t < dl.getT(hr.point))
 					blocked = true;
 			}
 			if (!blocked)
-				illumination += dl.getIllu(r, hr);
+				illumination += dl.getIllu(lr, hr, r);
 		}
 	}
 	result = hr.mat.base_color * illumination;
@@ -227,19 +229,29 @@ glm::vec3 ray_color(ray r, int depth) {
 	{
 		glm::vec3 normal = glm::normalize(hr.normal);
 		glm::vec3 dir = 2.0f * normal * (glm::dot(glm::normalize(r.dir), normal)) - glm::normalize(r.dir);
-		ray ray_ref = ray(hr.point + dir * 0.01f, dir);
+		ray ray_ref = ray(hr.point, dir);
 		result = ray_color(ray_ref, depth - 1);
 	}
 	if (hr.mat.transparent)
 	{
-		float breaking_factor_divistion = glm::dot(r.dir, hr.normal) > 0.0f ? 1.5f : 0.666667f;
-		glm::vec3 L = glm::normalize(r.dir) * (-1.0f);
-		float theta_i = glm::dot(L, glm::normalize(hr.normal));
-		float theta_r = asin(glm::clamp(breaking_factor_divistion * sin(theta_i), -1.f, 1.f));
-		glm::vec3 Tvec = (breaking_factor_divistion * cos(theta_i) - cos(theta_r)) * glm::normalize(hr.normal) - breaking_factor_divistion * L;
-		Tvec = glm::normalize(Tvec);
-		ray ray_trans = ray(hr.point + Tvec, Tvec);
-		result = ray_color(ray_trans, depth - 1);
+		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? 0.66666f : 1.5f;
+
+		//V_refraction = r * V_incedence + (rc - sqrt(1 - Math.pow(r, 2)(1 - Math.pow(c, 2))))n
+		//where r = n1 / n2 and c = -n dot V_incedence.
+
+
+		glm::vec3 N = glm::normalize(hr.normal);
+		glm::vec3 S1 = -glm::normalize(r.dir);
+		float theta1 = glm::dot(S1, N);
+		float theta2 = std::fmax(0.0f, 1.0f - theta1 * theta1);
+		float theta3 = n1_div_n2 * n1_div_n2 * theta2;
+		if (theta3 < 1) {
+			float theta4 = std::sqrt(1 - theta3);
+			glm::vec3 S2 = n1_div_n2 * S1 + (n1_div_n2 * theta1 - theta2) * N;
+			S2 = glm::normalize(S2);
+			if (!isnan(S2.x))
+				result = ray_color(ray(hr.point, S2), depth - 1);
+		}
 	}
 	if (result.x > 255.0f)
 		result.x = 255.0f;

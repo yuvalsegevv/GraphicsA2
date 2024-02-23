@@ -15,5 +15,5 @@ public:
     dirlight(glm::vec3 dir, glm::vec3 i);
     glm::vec3 getRay(glm::vec3 point);
     float getT(glm::vec3 point);
-    glm::vec3 getIllu(ray camera, hit_rec obj) ;
+    glm::vec3 getIllu(ray reflected, hit_rec obj, ray camera) ;
 };

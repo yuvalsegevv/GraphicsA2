@@ -16,5 +16,5 @@ public:
     spotlight(glm::vec3 origin, glm::vec3 dir, float cut_off_angle, glm::vec3 i);
     glm::vec3 getRay(glm::vec3 point);
     float getT(glm::vec3 point);
-    glm::vec3 getIllu(ray camera, hit_rec obj) ;
+    glm::vec3 getIllu(ray reflected, hit_rec obj, ray camera) ;
 };

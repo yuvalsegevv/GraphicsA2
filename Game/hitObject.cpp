@@ -47,7 +47,7 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
 
         
         hit_rec rec;
-        glm::vec3 normal_menormal = glm::normalize(glm::vec3(coords.x, coords.y, coords.z));
+        glm::vec3 normal_menormal = glm::vec3(coords.x, coords.y, coords.z);
         //float denom = glm::dot(normal_menormal, incomingRay.dir);
 
         // we directly calculate t
@@ -65,8 +65,7 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
         // Apply checker pattern modification
         glm::vec3 projected_point = glm::vec3(rec.point.x, rec.point.y, 0); // Assuming z=0 for simplicity
         bool is_even = (static_cast<int>(std::floor(projected_point.x * 2) + std::floor(projected_point.y * 2)) % 2) == 0;
-        rec.mat.Kd = is_even ? 0.5f : mat.Kd;
-
+        rec.mat.Kd = is_even ? mat.Kd : mat.Kd * 0.5f;
         return rec; // Return the populated hit_record*/
     }
     else {
@@ -81,6 +80,9 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
 
         // Find the nearest root that lies in the acceptable range
         auto root = (-half_b - sqrtd) / a;
+        if (root < t_min || t_max < root) {
+            root = (-half_b + sqrtd) / a;
+        }
         if (isnan(root))
             rec.t = 99999999.9f;
         else
