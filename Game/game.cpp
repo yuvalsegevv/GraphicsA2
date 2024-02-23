@@ -16,6 +16,7 @@ static std::vector<spotlight> spotlights;
 static std::vector<dirlight> dirlights;
 
 
+
 static void printMat(const glm::mat4 mat)
 {
 	std::cout<<" matrix:"<<std::endl;
