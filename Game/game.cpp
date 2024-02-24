@@ -17,7 +17,8 @@ static std::vector<dirlight> dirlights;
 
 static int PICTURE_SIZE = 512; //increasing this value will result in higher resolution but slower runtime
 static int DEAPTH = 5;
-static std::string INPUT_FILE = "custom_scene";
+static std::string INPUT_FILE = "scene2";
+static bool DO_MULTI_SMAPLING = true;
 
 static glm::vec3 BLACK = glm::vec3(0.0f, 0.0f, 0.0f);
 static float infinity = std::numeric_limits<float>::max();
@@ -177,7 +178,7 @@ void parseFile()
 
 glm::vec3 getLightIllumination(ray reflected, hit_rec obj, ray camera, glm::vec3 base_illumination) {
 	if (glm::length(reflected.dir) == 0)
-		return glm::vec3(.0f, .0f, .0f);
+		return BLACK;
 	glm::vec3 L = glm::normalize(reflected.dir);
 	glm::vec3 N = glm::normalize(obj.normal);
 	glm::vec3 R = glm::normalize(2.0f * glm::dot(N, L) * N - L);
@@ -260,12 +261,13 @@ glm::vec3 ray_color(ray r, int depth) {
 	}
 	else if (hr.mat.transparent)
 	{
-		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? 1 / MAT_REFLECTION : MAT_REFLECTION;
+		
+		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? MAT_REFLECTION : 1 / MAT_REFLECTION;
 		glm::vec3 S1 = -glm::normalize(r.dir);
-		float theta1 = glm::dot(S1, glm::normalize(hr.normal));
-		float theta2 = asin(glm::clamp(n1_div_n2 * sin(theta1), -1.f, 1.f));
-		glm::vec3 S2 = (n1_div_n2 * cos(theta1) - cos(theta2)) * glm::normalize(hr.normal) - n1_div_n2 * S1;
-		S2 = glm::normalize(S2);
+		//float theta1 = glm::dot(S1, glm::normalize(hr.normal));
+		//float theta2 = asin(glm::clamp(n1_div_n2 * sin(theta1), -1.f, 1.f));
+		//glm::vec3 S2 = (n1_div_n2 * cos(theta1) - cos(theta2)) * glm::normalize(hr.normal) - n1_div_n2 * S1;
+		glm::vec3 S2 = glm::refract(S1, glm::normalize(hr.normal), n1_div_n2);
 		result = ray_color(ray(S2, hr.point), depth - 1);
 	}
 	else
@@ -290,20 +292,30 @@ void tracePixel(unsigned char* image,int x,int y, int size_x, int size_y)
 		eye - horizontal / 2.0f - vertical / 2.0f - focal_length;
 
 	glm::vec3 pixel_color = glm::vec3(0.0f, 0.0f, 0.0f);
-	float u = (float(x) / (size_x - 1));
-	float v = (float(y) / (size_y - 1));
-	glm::vec3 xDir = glm::vec3(2 * u, 0, 0);
-	glm::vec3 yDir = glm::vec3(0, 2 * v, 0);
+	float x_ = (float(x) / (size_x - 1));
+	float y_ = (float(y) / (size_y - 1));
+	glm::vec3 xDir = glm::vec3(2 * x_, 0, 0);
+	glm::vec3 yDir = glm::vec3(0, 2 * y_, 0);
+	glm::vec3 x_smaple_movement = glm::vec3(0.5f / (size_x - 1), 0, 0);
+	glm::vec3 y_smaple_movement = glm::vec3(0, 0.5f / (size_x - 1), 0);
 
 	ray r(eye, lower_left_corner + xDir + yDir - eye);
+	ray r1(eye, lower_left_corner + xDir + yDir - eye - x_smaple_movement - y_smaple_movement);
+	ray r2(eye, lower_left_corner + xDir + yDir - eye + x_smaple_movement - y_smaple_movement);
+	ray r3(eye, lower_left_corner + xDir + yDir - eye - x_smaple_movement + y_smaple_movement);
+	ray r4(eye, lower_left_corner + xDir + yDir - eye + x_smaple_movement + y_smaple_movement);
 
-	pixel_color = ray_color(r, DEAPTH);
+	if (DO_MULTI_SMAPLING)
+		pixel_color = (ray_color(r1, DEAPTH) + ray_color(r2, DEAPTH) + ray_color(r2, DEAPTH) + ray_color(r2, DEAPTH)) * 0.25f;
+	else
+		pixel_color = ray_color(r, DEAPTH);
 
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4] = pixel_color.x;
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 1] = pixel_color.y;
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 2] = pixel_color.z;
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 3] = 255;
 }
+
 void Game::Init()
 {		
 
