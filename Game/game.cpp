@@ -15,6 +15,9 @@ static std::vector<HitObject> hitObjects;
 static std::vector<spotlight> spotlights;
 static std::vector<dirlight> dirlights;
 
+static int PICTURE_SIZE = 512; //increasing this value will result in higher resolution but slower runtime
+static int DEAPTH = 5;
+static std::string INPUT_FILE = "scene5";
 
 static void printMat(const glm::mat4 mat)
 {
@@ -114,7 +117,7 @@ void processLine(const std::string& line) {
 void parseFile()
 {
 	std::string currLine;
-	std::ifstream inputFile("../res/scene1.txt", std::ios::in);
+	std::ifstream inputFile("../res/" + INPUT_FILE + ".txt", std::ios::in);
 	if (!inputFile)
 	{
 		std::cerr << "could not open the specify file" << std::endl;
@@ -251,7 +254,7 @@ glm::vec3 ray_color(ray r, int depth) {
 	return result;
 }
 
-void tracePixel(unsigned char* image,int x,int y)
+void tracePixel(unsigned char* image,int x,int y, int size_x, int size_y)
 {
 	glm::vec3 eye = glm::vec3(eyeCoords[0].x, eyeCoords[0].y, eyeCoords[0].z); //origin
 	glm::vec3 horizontal = glm::vec3(2.0, 0, 0); // X axis
@@ -261,24 +264,19 @@ void tracePixel(unsigned char* image,int x,int y)
 		eye - horizontal / 2.0f - vertical / 2.0f - focal_length;
 
 	glm::vec3 pixel_color = glm::vec3(0.0f, 0.0f, 0.0f);
-	float u = (float(x) / 255);
-	float v = (float(y) / 255);
+	float u = (float(x) / (size_x - 1));
+	float v = (float(y) / (size_y - 1));
 	glm::vec3 xDir = glm::vec3(2 * u, 0, 0);
 	glm::vec3 yDir = glm::vec3(0, 2 * v, 0);
-	glm::vec3 x_sample_movement = glm::vec3(0.3 / 255, 0, 0);
-	glm::vec3 y_sample_movement = glm::vec3(0, 0.3 / 255, 0);
+
 	ray r(eye, lower_left_corner + xDir + yDir - eye);
-	//ray r1(eye, lower_left_corner + xDir + yDir - x_sample_movement - y_sample_movement - eye);
-	//ray r2(eye, lower_left_corner + xDir + yDir - x_sample_movement + y_sample_movement - eye);
-	//ray r3(eye, lower_left_corner + xDir + yDir + x_sample_movement - y_sample_movement - eye);
-	//ray r4(eye, lower_left_corner + xDir + yDir + x_sample_movement + y_sample_movement - eye);
-	//pixel_color = (ray_color(r1, 5) + ray_color(r2, 5) + ray_color(r3, 5) + ray_color(r4, 5)) / 4.0f;
-	pixel_color = ray_color(r, 5);
-	//pixel_color = pixel_color / (float)1;
-	image[255 * 256 * 4 - y * 256 * 4 + x * 4] = pixel_color.x;
-	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 1] = pixel_color.y;
-	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 2] = pixel_color.z;
-	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 3] = 255;
+
+	pixel_color = ray_color(r, DEAPTH);
+
+	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4] = pixel_color.x;
+	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 1] = pixel_color.y;
+	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 2] = pixel_color.z;
+	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 3] = 255;
 }
 void Game::Init()
 {		
@@ -298,18 +296,15 @@ void Game::Init()
 
 
 	parseFile();
-
-	int w = 256;
-	int h = 256;
+	int w = PICTURE_SIZE;
+	int h = PICTURE_SIZE;
 
 	unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)* w * h *4);
-	for (int i = 0; i < w * h; i++) {
-		//image[4 * i + 3] = 255;
-	}
 	for (int i = 0; i < w; i++)
 		for (int j = 0; j < w; j++)
-			tracePixel(image, j, i);
-	AddTexture(256, 256, image);
+			tracePixel(image, j, i, h, w);
+	AddTexture(w, h, image);
+	delete image;
 	//ReadPixel(); //uncomment when you are reading from the z-buffer
 }
 
