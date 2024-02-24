@@ -16,7 +16,7 @@ static std::vector<spotlight> spotlights;
 static std::vector<dirlight> dirlights;
 
 static int PICTURE_SIZE = 512; //increasing this value will result in higher resolution but slower runtime
-static int DEAPTH = 5;
+static int DEPTH = 5;
 static std::string INPUT_FILE = "scene";
 static bool DO_MULTI_SMAPLING = true;
 
@@ -306,9 +306,9 @@ void tracePixel(unsigned char* image,int x,int y, int size_x, int size_y)
 	ray r4(eye, lower_left_corner + xDir + yDir - eye + x_smaple_movement + y_smaple_movement);
 
 	if (DO_MULTI_SMAPLING)
-		pixel_color = (ray_color(r1, DEAPTH) + ray_color(r2, DEAPTH) + ray_color(r2, DEAPTH) + ray_color(r2, DEAPTH)) * 0.25f;
+		pixel_color = (ray_color(r1, DEPTH) + ray_color(r2, DEPTH) + ray_color(r2, DEPTH) + ray_color(r2, DEPTH)) * 0.25f;
 	else
-		pixel_color = ray_color(r, DEAPTH);
+		pixel_color = ray_color(r, DEPTH);
 
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4] = pixel_color.x;
 	image[(size_y - 1) * size_x * 4 - y * size_x * 4 + x * 4 + 1] = pixel_color.y;
