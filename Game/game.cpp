@@ -17,18 +17,12 @@ static std::vector<dirlight> dirlights;
 
 static int PICTURE_SIZE = 512; //increasing this value will result in higher resolution but slower runtime
 static int DEAPTH = 5;
-static std::string INPUT_FILE = "scene5";
+static std::string INPUT_FILE = "custom_scene";
 
-static void printMat(const glm::mat4 mat)
-{
-	std::cout<<" matrix:"<<std::endl;
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 4; j++)
-			std::cout<< mat[j][i]<<" ";
-		std::cout<<std::endl;
-	}
-}
+static glm::vec3 BLACK = glm::vec3(0.0f, 0.0f, 0.0f);
+static float infinity = std::numeric_limits<float>::max();
+static float epsilon = 0.001f;
+static float MAT_REFLECTION = 1.5f;
 
 Game::Game() : Scene()
 {
@@ -181,22 +175,27 @@ void parseFile()
 
 }
 
+glm::vec3 getLightIllumination(ray reflected, hit_rec obj, ray camera, glm::vec3 base_illumination) {
+	if (glm::length(reflected.dir) == 0)
+		return glm::vec3(.0f, .0f, .0f);
+	glm::vec3 L = glm::normalize(reflected.dir);
+	glm::vec3 N = glm::normalize(obj.normal);
+	glm::vec3 R = glm::normalize(2.0f * glm::dot(N, L) * N - L);
+	glm::vec3 V = glm::normalize(camera.dir);
+	glm::vec3 diffuse = obj.mat.Kd * std::abs(glm::dot(N, L)) * base_illumination;
+	glm::vec3 specular = obj.mat.Kd * std::pow(glm::dot(R, V), obj.mat.shininess) * base_illumination;
+	if (specular.x < 0)
+		specular.x = 0;
+	if (specular.y < 0)
+		specular.y = 0;
+	if (specular.z < 0)
+		specular.z = 0;
+	return diffuse + specular;
 
-glm::vec3 ray_color(ray r, int depth) {
-	if (depth == 0)
-		return glm::vec3(0.0f, 0.0f, 0.0f);
-	float min_t = 999999999.9;
-	hit_rec hr;
-	glm::vec3 result = glm::vec3(0.0f, 0.0f, 0.0f);
-	for (HitObject h : hitObjects) {
-		hit_rec nhr = h.get_hit(r, 0.0001, 999999999.9);
-		if (nhr.t < min_t && !isnan(nhr.t))
-		{
-			min_t = nhr.t;
-			hr = nhr;
-		}
-	}
-	glm::vec3 illumination = glm::vec3(ambientColor[0].x * hr.mat.Kd, ambientColor[0].y * hr.mat.Kd, ambientColor[0].z * hr.mat.Kd);
+}
+
+glm::vec3 check_spotlights(ray r, hit_rec hr){
+	glm::vec3 illumination = BLACK;
 	for (spotlight sl : spotlights)
 	{
 		if (!std::isnan(hr.t)) {
@@ -204,14 +203,19 @@ glm::vec3 ray_color(ray r, int depth) {
 			ray lr = ray(hr.point, sl.getRay(hr.point));
 			for (HitObject h : hitObjects) {
 				hit_rec hrl;
-				hrl = h.get_hit(lr, 0.001, sl.getT(hr.point));
-				if (!std::isnan(hrl.t) && hrl.t > 0.001 && hrl.t < sl.getT(hr.point))
+				hrl = h.get_hit(lr, epsilon, sl.getT(hr.point));
+				if (!std::isnan(hrl.t) && hrl.t > epsilon && hrl.t < sl.getT(hr.point))
 					blocked = true;
 			}
 			if (!blocked)
-				illumination += sl.getIllu(lr, hr, r);
+				illumination += getLightIllumination(lr, hr, r, sl.illumination);
 		}
 	}
+	return illumination;
+}
+
+glm::vec3 check_dirlights(ray r, hit_rec hr) {
+	glm::vec3 illumination = BLACK;
 	for (dirlight dl : dirlights)
 	{
 		if (!std::isnan(hr.t)) {
@@ -219,25 +223,44 @@ glm::vec3 ray_color(ray r, int depth) {
 			ray lr = ray(hr.point, dl.getRay(hr.point));
 			for (HitObject h : hitObjects) {
 				hit_rec hrl;
-				hrl = h.get_hit(lr, 0.001, dl.getT(hr.point));
-				if (!std::isnan(hrl.t) && hrl.t > 0.001 && hrl.t < dl.getT(hr.point))
+				hrl = h.get_hit(lr, epsilon, dl.getT(hr.point));
+				if (!std::isnan(hrl.t) && hrl.t > epsilon && hrl.t < dl.getT(hr.point))
 					blocked = true;
 			}
 			if (!blocked)
-				illumination += dl.getIllu(lr, hr, r);
+				illumination += getLightIllumination(lr, hr, r, dl.illumination);
 		}
 	}
-	result = hr.mat.base_color * illumination;
+	return illumination;
+}
+
+
+glm::vec3 ray_color(ray r, int depth) {
+	if (depth == 0)
+		return BLACK;
+	float min_t = infinity;
+	hit_rec hr;
+	glm::vec3 result = BLACK;
+	for (HitObject h : hitObjects) {
+		hit_rec nhr = h.get_hit(r, epsilon, infinity);
+		if (nhr.t < min_t && !isnan(nhr.t))
+		{
+			min_t = nhr.t;
+			hr = nhr;
+		}
+	}
+	glm::vec3 illumination = glm::vec3(ambientColor[0].x * hr.mat.Kd, ambientColor[0].y * hr.mat.Kd, ambientColor[0].z * hr.mat.Kd);
+	
 	if (hr.mat.reflective)
 	{
 		glm::vec3 N = glm::normalize(hr.normal);
 		glm::vec3 dir = 2.0f * N * (glm::dot(glm::normalize(r.dir), N)) - glm::normalize(r.dir);
-		ray ray_ref = ray(hr.point - dir * 0.1f, -dir);
+		ray ray_ref = ray(hr.point - dir * epsilon, -dir);
 		result = ray_color(ray_ref, depth - 1);
 	}
-	if (hr.mat.transparent)
+	else if (hr.mat.transparent)
 	{
-		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? 0.66666f : 1.5f;
+		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? 1 / MAT_REFLECTION : MAT_REFLECTION;
 		glm::vec3 S1 = -glm::normalize(r.dir);
 		float theta1 = glm::dot(S1, glm::normalize(hr.normal));
 		float theta2 = asin(glm::clamp(n1_div_n2 * sin(theta1), -1.f, 1.f));
@@ -245,6 +268,9 @@ glm::vec3 ray_color(ray r, int depth) {
 		S2 = glm::normalize(S2);
 		result = ray_color(ray(S2, hr.point), depth - 1);
 	}
+	else
+		result = hr.mat.base_color * (illumination + check_spotlights(r, hr) + check_dirlights(r, hr));
+	
 	if (result.x > 255.0f)
 		result.x = 255.0f;
 	if (result.y > 255.0f)

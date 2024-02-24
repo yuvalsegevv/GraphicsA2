@@ -2,41 +2,6 @@
 #include "HitObject.h"
 #include "glm/detail/func_geometric.hpp"
 
-bool HitObject::can_hit(const ray& incomingRay, float t_min, float t_max) {
-    if (coords.w <= 0) {
-        glm::vec3 normalized_normal = glm::normalize(glm::vec3(coords.x, coords.y, coords.z));
-        float denom = glm::dot(normalized_normal, incomingRay.dir);
-
-        if (std::abs(denom) > 1e-6) { // Check if ray is not parallel to the plane
-            float t = (glm::dot(-incomingRay.orig, normalized_normal) + coords.w) / denom;
-            return t >= t_min && t <= t_max; // Return true if t is within the range
-        }
-
-        return false; // Return false if ray is parallel to the plane or t is out of range
-    }
-    else
-    {
-        glm::vec3 sphere_center = incomingRay.orig - glm::normalize(glm::vec3(coords.x, coords.y, coords.z));
-        float a = incomingRay.dir[0] * incomingRay.dir[0] + incomingRay.dir[1] * incomingRay.dir[1] + incomingRay.dir[2] * incomingRay.dir[2];
-        auto half_b = glm::dot(sphere_center, incomingRay.dir);
-        float c = glm::dot(sphere_center, sphere_center) - coords.w * coords.w;
-        float discriminant = half_b * half_b - a * c;
-
-        if (discriminant < 0) return false;
-
-        // Check for the nearest root in the acceptable range
-        auto sqrtd = sqrt(discriminant);
-        auto root = (-half_b - sqrtd) / a;
-        if (root < t_min || t_max < root) {
-            root = (-half_b + sqrtd) / a;
-            if (root < t_min || t_max < root)
-                return false;
-        }
-
-        return true;
-    }
-}
-
 hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
     if (coords.w <= 0) {
 
@@ -48,12 +13,6 @@ hit_rec HitObject::get_hit(const ray& incomingRay, float t_min, float t_max) {
         
         hit_rec rec;
         glm::vec3 normal_menormal = glm::vec3(coords.x, coords.y, coords.z);
-        //float denom = glm::dot(normal_menormal, incomingRay.dir);
-
-        // we directly calculate t
-        //float t = (glm::dot(-incomingRay.orig, normal_menormal) + coords.w) / denom;
-
-        // Populate the hit_record
         if (isnan(intersection.x) || t < 0)
             rec.t = 99999999.9f;
         else

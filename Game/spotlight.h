@@ -9,7 +9,7 @@ static float specularReflection = 0.7f;
 class spotlight {
 public:
     
-    glm::vec3 baseIllumination;
+    glm::vec3 illumination;
     ray r;
     float cut_off_angle;
     spotlight() {}

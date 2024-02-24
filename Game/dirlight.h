@@ -9,7 +9,7 @@ static float specularReflection_ = 0.7f;
 class dirlight {
 public:
     
-    glm::vec3 baseIllumination;
+    glm::vec3 illumination;
     glm::vec3 dir;
     dirlight() {}
     dirlight(glm::vec3 dir, glm::vec3 i);
