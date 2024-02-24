@@ -114,7 +114,7 @@ void processLine(const std::string& line) {
 void parseFile()
 {
 	std::string currLine;
-	std::ifstream inputFile("../res/custom_scene.txt", std::ios::in);
+	std::ifstream inputFile("../res/scene1.txt", std::ios::in);
 	if (!inputFile)
 	{
 		std::cerr << "could not open the specify file" << std::endl;
@@ -227,31 +227,20 @@ glm::vec3 ray_color(ray r, int depth) {
 	result = hr.mat.base_color * illumination;
 	if (hr.mat.reflective)
 	{
-		glm::vec3 normal = glm::normalize(hr.normal);
-		glm::vec3 dir = 2.0f * normal * (glm::dot(glm::normalize(r.dir), normal)) - glm::normalize(r.dir);
-		ray ray_ref = ray(hr.point, dir);
+		glm::vec3 N = glm::normalize(hr.normal);
+		glm::vec3 dir = 2.0f * N * (glm::dot(glm::normalize(r.dir), N)) - glm::normalize(r.dir);
+		ray ray_ref = ray(hr.point - dir * 0.1f, -dir);
 		result = ray_color(ray_ref, depth - 1);
 	}
 	if (hr.mat.transparent)
 	{
 		float n1_div_n2 = glm::dot(r.dir, hr.normal) > 0.0f ? 0.66666f : 1.5f;
-
-		//V_refraction = r * V_incedence + (rc - sqrt(1 - Math.pow(r, 2)(1 - Math.pow(c, 2))))n
-		//where r = n1 / n2 and c = -n dot V_incedence.
-
-
-		glm::vec3 N = glm::normalize(hr.normal);
 		glm::vec3 S1 = -glm::normalize(r.dir);
-		float theta1 = glm::dot(S1, N);
-		float theta2 = std::fmax(0.0f, 1.0f - theta1 * theta1);
-		float theta3 = n1_div_n2 * n1_div_n2 * theta2;
-		if (theta3 < 1) {
-			float theta4 = std::sqrt(1 - theta3);
-			glm::vec3 S2 = n1_div_n2 * S1 + (n1_div_n2 * theta1 - theta2) * N;
-			S2 = glm::normalize(S2);
-			if (!isnan(S2.x))
-				result = ray_color(ray(hr.point, S2), depth - 1);
-		}
+		float theta1 = glm::dot(S1, glm::normalize(hr.normal));
+		float theta2 = asin(glm::clamp(n1_div_n2 * sin(theta1), -1.f, 1.f));
+		glm::vec3 S2 = (n1_div_n2 * cos(theta1) - cos(theta2)) * glm::normalize(hr.normal) - n1_div_n2 * S1;
+		S2 = glm::normalize(S2);
+		result = ray_color(ray(S2, hr.point), depth - 1);
 	}
 	if (result.x > 255.0f)
 		result.x = 255.0f;
@@ -272,16 +261,19 @@ void tracePixel(unsigned char* image,int x,int y)
 		eye - horizontal / 2.0f - vertical / 2.0f - focal_length;
 
 	glm::vec3 pixel_color = glm::vec3(0.0f, 0.0f, 0.0f);
-	for (int s = 0; s < 1; s++) {
-		float u = (float(x) / 255);
-		float v = (float(y) / 255);
-		glm::vec3 xDir = glm::vec3(2 * u, 0, 0);
-		glm::vec3 yDir = glm::vec3(0, 2 * v, 0);
-		//glm::vec3 xDir = glm::vec3(0.5, 0, 0);
-		//glm::vec3 yDir = glm::vec3(0, 0.5, 0);
-		ray r(eye, lower_left_corner + xDir + yDir - eye);
-		pixel_color = ray_color(r, 5);
-	}
+	float u = (float(x) / 255);
+	float v = (float(y) / 255);
+	glm::vec3 xDir = glm::vec3(2 * u, 0, 0);
+	glm::vec3 yDir = glm::vec3(0, 2 * v, 0);
+	glm::vec3 x_sample_movement = glm::vec3(0.3 / 255, 0, 0);
+	glm::vec3 y_sample_movement = glm::vec3(0, 0.3 / 255, 0);
+	ray r(eye, lower_left_corner + xDir + yDir - eye);
+	//ray r1(eye, lower_left_corner + xDir + yDir - x_sample_movement - y_sample_movement - eye);
+	//ray r2(eye, lower_left_corner + xDir + yDir - x_sample_movement + y_sample_movement - eye);
+	//ray r3(eye, lower_left_corner + xDir + yDir + x_sample_movement - y_sample_movement - eye);
+	//ray r4(eye, lower_left_corner + xDir + yDir + x_sample_movement + y_sample_movement - eye);
+	//pixel_color = (ray_color(r1, 5) + ray_color(r2, 5) + ray_color(r3, 5) + ray_color(r4, 5)) / 4.0f;
+	pixel_color = ray_color(r, 5);
 	//pixel_color = pixel_color / (float)1;
 	image[255 * 256 * 4 - y * 256 * 4 + x * 4] = pixel_color.x;
 	image[255 * 256 * 4 - y * 256 * 4 + x * 4 + 1] = pixel_color.y;
