@@ -17,7 +17,7 @@ static std::vector<dirlight> dirlights;
 
 static int PICTURE_SIZE = 512; //increasing this value will result in higher resolution but slower runtime
 static int DEAPTH = 5;
-static std::string INPUT_FILE = "scene2";
+static std::string INPUT_FILE = "scene";
 static bool DO_MULTI_SMAPLING = true;
 
 static glm::vec3 BLACK = glm::vec3(0.0f, 0.0f, 0.0f);
