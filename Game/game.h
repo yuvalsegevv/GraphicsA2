@@ -1,8 +1,6 @@
 #pragma once
 #include "scene.h"
 #include "HitObject.h"
-#include "sphere.h"
-#include "plane.h"
 #include "spotlight.h"
 #include "dirlight.h"
 
